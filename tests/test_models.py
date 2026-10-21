@@ -1078,6 +1078,15 @@ class TestModels(unittest.TestCase):
         step = mx.concatenate(step, axis=1)
         self.assertTrue(mx.allclose(full, step, atol=1e-4))
 
+        args.factorized_embedding = False
+        args.shared_kv = False
+        args.q_norm = False
+        args.qk_norm = True
+        model = nandi.Model(args)
+        self.model_test_runner(
+            model, args.model_type, args.vocab_size, args.num_hidden_layers
+        )
+
     def test_qwen3(self):
         from mlx_lm.models import qwen3
 
