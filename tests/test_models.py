@@ -1043,6 +1043,41 @@ class TestModels(unittest.TestCase):
             expected_weights[i] = probs[i] / sum(probs[j] for j in expected)
         self.assertTrue(mx.allclose(out[0, 0, :4], expected_weights, atol=1e-5))
 
+    def test_nandi(self):
+        from mlx_lm.models import nandi
+
+        args = nandi.ModelArgs(
+            model_type="nandi",
+            hidden_size=128,
+            num_hidden_layers=2,
+            intermediate_size=256,
+            num_attention_heads=4,
+            num_key_value_heads=2,
+            head_dim=24,
+            rms_norm_eps=1e-6,
+            vocab_size=1000,
+            factorized_embedding=True,
+            embedding_rank=64,
+            shared_kv=True,
+            q_norm=True,
+            rope_parameters={"rope_theta": 1000000.0, "rope_type": "default"},
+        )
+        model = nandi.Model(args)
+        self.model_test_runner(
+            model, args.model_type, args.vocab_size, args.num_hidden_layers
+        )
+
+        # Decoding with the cache must match a full forward pass.
+        model.update(tree_map(lambda p: p.astype(mx.float32), model.parameters()))
+        inputs = mx.array([[5, 7, 11, 13, 17]])
+        full = model(inputs)
+        cache = make_prompt_cache(model)
+        step = [model(inputs[:, :3], cache=cache)]
+        for i in range(3, 5):
+            step.append(model(inputs[:, i : i + 1], cache=cache))
+        step = mx.concatenate(step, axis=1)
+        self.assertTrue(mx.allclose(full, step, atol=1e-4))
+
     def test_qwen3(self):
         from mlx_lm.models import qwen3
 
